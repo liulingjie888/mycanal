@@ -2,7 +2,6 @@ package com.alibaba.otter.canal.example.demo;
 
 import lombok.Data;
 
-@Data
 public enum ExceptionStrategy {
 
     /**
