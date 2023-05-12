@@ -109,6 +109,8 @@ public class MappingConfig implements AdapterConfig {
         private int readBatch = 5000;
         private int commitBatch = 5000;                  // etl等批量提交大小
 
+        private String escapeChar;          // 转义字符
+
         private Map<String, String> allMapColumns;
 
         public boolean getMirrorDb() {
@@ -220,6 +222,14 @@ public class MappingConfig implements AdapterConfig {
 
         public void setAllMapColumns(Map<String, String> allMapColumns) {
             this.allMapColumns = allMapColumns;
+        }
+
+        public String getEscapeChar() {
+            return escapeChar;
+        }
+
+        public void setEscapeChar(String escapeChar) {
+            this.escapeChar = escapeChar;
         }
     }
 }
