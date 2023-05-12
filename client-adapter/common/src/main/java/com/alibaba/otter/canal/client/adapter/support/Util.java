@@ -5,9 +5,8 @@ import java.net.URL;
 import java.sql.*;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.Date;
-import java.util.List;
-import java.util.TimeZone;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -63,6 +62,46 @@ public class Util {
         } catch (Exception e) {
             logger.error("sqlRs has error, sql: {} ", sql);
             throw new RuntimeException(e);
+        }
+    }
+
+    public static Object sqlRS(DataSource ds, String sql, List<Object> values, List<String> columnNameList, Function<List<Map<String, Object>>, Object> fun) {
+        List<Map<String, Object>> valuesList;
+        try (Connection conn = ds.getConnection()) {
+            try (PreparedStatement pstmt = conn
+                    .prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
+                pstmt.setFetchSize(Integer.MIN_VALUE);
+                if (values != null) {
+                    for (int i = 0; i < values.size(); i++) {
+                        pstmt.setObject(i + 1, values.get(i));
+                    }
+                }
+
+                try (ResultSet rs = pstmt.executeQuery()) {
+                    valuesList = getValueList(rs, columnNameList);
+
+                }
+            }
+        } catch (Exception e) {
+            logger.error("sqlRs has error, sql: {} ", sql);
+            throw new RuntimeException(e);
+        }
+        return fun.apply(valuesList);
+    }
+
+    private static List<Map<String, Object>> getValueList(ResultSet rs, List<String> columnNameList) throws SQLException {
+        try {
+            List<Map<String, Object>> list = new ArrayList<>();
+            while (rs.next()) {
+                Map<String, Object> values = new HashMap<>();
+                for (String columnName : columnNameList) {
+                    values.put(columnName, rs.getObject(columnName));
+                }
+                list.add(values);
+            }
+            return list;
+        } catch (Exception e) {
+            throw e;
         }
     }
 

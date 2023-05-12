@@ -5,11 +5,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
@@ -77,7 +75,7 @@ public class RdbEtlService extends AbstractEtlService {
                 }
             });
 
-            Util.sqlRS(srcDS, sql, values, rs -> {
+            Util.sqlRS(srcDS, sql, values, new ArrayList<>(columnType.keySet()), list -> {
                 int idx = 1;
 
                 try {
@@ -100,7 +98,7 @@ public class RdbEtlService extends AbstractEtlService {
                          PreparedStatement pstmt = connTarget.prepareStatement(insertSql.toString())) {
                         connTarget.setAutoCommit(false);
 
-                        while (rs.next()) {
+                        for (Map<String, Object> valueMap : list) {
                             completed = false;
 
                             pstmt.clearParameters();
@@ -109,7 +107,7 @@ public class RdbEtlService extends AbstractEtlService {
                             Map<String, Object> pkVal = new LinkedHashMap<>();
                             StringBuilder deleteSql = new StringBuilder(
                                     "DELETE FROM " + SyncUtil.getDbTableName(dbMapping) + " WHERE ");
-                            appendCondition(dbMapping, deleteSql, pkVal, rs);
+                            appendCondition(dbMapping, deleteSql, pkVal, valueMap);
                             try (PreparedStatement pstmt2 = connTarget.prepareStatement(deleteSql.toString())) {
                                 int k = 1;
                                 for (Object val : pkVal.values()) {
@@ -128,7 +126,7 @@ public class RdbEtlService extends AbstractEtlService {
 
                                 Integer type = columnType.get(targetClolumnName.toLowerCase());
 
-                                Object value = rs.getObject(srcColumnName);
+                                Object value = valueMap.get(srcColumnName);
                                 if (value != null) {
                                     SyncUtil.setPStmt(type, pstmt, value, i);
                                 } else {
@@ -175,7 +173,7 @@ public class RdbEtlService extends AbstractEtlService {
      * 拼接目标表主键where条件
      */
     private static void appendCondition(DbMapping dbMapping, StringBuilder sql, Map<String, Object> values,
-                                        ResultSet rs) throws SQLException {
+                                        Map<String, Object> valueMap) throws SQLException {
         // 拼接主键
         for (Map.Entry<String, String> entry : dbMapping.getTargetPk().entrySet()) {
             String targetColumnName = entry.getKey();
@@ -184,7 +182,7 @@ public class RdbEtlService extends AbstractEtlService {
                 srcColumnName = targetColumnName;
             }
             sql.append(targetColumnName).append("=? AND ");
-            values.put(targetColumnName, rs.getObject(srcColumnName));
+            values.put(targetColumnName, valueMap.get(srcColumnName));
         }
         int len = sql.length();
         sql.delete(len - 4, len);
